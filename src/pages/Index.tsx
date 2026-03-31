@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
-const CAT_IMAGE = "https://cdn.poehali.dev/projects/54c437fd-ed06-46ad-a693-eec01f816eaf/bucket/5f9b441a-af18-4331-8cac-38240271061e.jpg";
+const CAT_IMAGE_CARTOON = "https://cdn.poehali.dev/projects/54c437fd-ed06-46ad-a693-eec01f816eaf/files/b5e7e8d1-a914-456f-97c9-a512c3786a06.jpg";
 
 type Tab = "home" | "items" | "sounds" | "info";
+type Room = "bedroom" | "kitchen" | "playroom";
 
 interface FloatingEmoji {
   id: number;
@@ -11,17 +12,36 @@ interface FloatingEmoji {
   y: number;
 }
 
-const CAT_PHRASES = [
+const CAT_PHRASES: Record<Room, string[]> = {
+  bedroom: [
+    "Пррр... тут так уютно... 😴",
+    "Не мешай спать! 😾",
+    "Мягкая подушка — счастье! 🛏️",
+    "Ещё пять минуточек... 💤",
+    "Мур-мур... сладкий сон... 🌙",
+  ],
+  kitchen: [
+    "Дай рыбку! Дай рыбку! 🐟",
+    "Ням-ням, здесь пахнет едой! 😋",
+    "Я голодный как сто котов! 🍣",
+    "Молочко? Для меня? ❤️",
+    "Хочу курочку-мурочку! 🍗",
+  ],
+  playroom: [
+    "Ура! Играем! 🎉",
+    "Кидай клубок, кидай! 🧶",
+    "Я самый быстрый кот! ⚡",
+    "Ещё разочек, пожалуйста! 🎾",
+    "Не могу остановиться! 😹",
+  ],
+};
+
+const GENERAL_PHRASES = [
   "Мур-мур-мур! 😻",
-  "Хочу играть! 🎮",
   "Погладь меня! 🐾",
   "Я тебя люблю! ❤️",
-  "Дай поесть! 🍣",
   "Мяу-мяу! 🐱",
   "Ты мой любимый! ✨",
-  "Тепло и уютно! 🌸",
-  "Хочу рыбку! 🐟",
-  "Спать хочу... 😴",
 ];
 
 const TOYS = [
@@ -47,8 +67,49 @@ const SOUNDS = [
   { emoji: "😿", name: "Плакать", phrase: "Мяу-у-у... Обними меня! 😿" },
 ];
 
+const ROOMS: { id: Room; label: string; emoji: string }[] = [
+  { id: "bedroom", label: "Спальня", emoji: "🛏️" },
+  { id: "kitchen", label: "Кухня", emoji: "🍳" },
+  { id: "playroom", label: "Игровая", emoji: "🎮" },
+];
+
+const ROOM_BACKGROUNDS: Record<Room, { bg: string; items: { emoji: string; style: React.CSSProperties }[] }> = {
+  bedroom: {
+    bg: "linear-gradient(180deg, #1a1a4e 0%, #2d2d6b 40%, #8B7355 100%)",
+    items: [
+      { emoji: "🌙", style: { top: 12, right: 20, fontSize: 28, opacity: 0.9 } },
+      { emoji: "⭐", style: { top: 20, left: 30, fontSize: 16, opacity: 0.7 } },
+      { emoji: "⭐", style: { top: 35, right: 60, fontSize: 12, opacity: 0.6 } },
+      { emoji: "🛏️", style: { bottom: 0, left: "50%", transform: "translateX(-50%)", fontSize: 72 } },
+      { emoji: "🪟", style: { top: 16, left: 16, fontSize: 40, opacity: 0.8 } },
+      { emoji: "🧸", style: { bottom: 24, left: 20, fontSize: 28 } },
+    ],
+  },
+  kitchen: {
+    bg: "linear-gradient(180deg, #87CEEB 0%, #fffbe6 60%, #d4a96a 100%)",
+    items: [
+      { emoji: "☀️", style: { top: 10, right: 20, fontSize: 32 } },
+      { emoji: "🪟", style: { top: 16, left: 16, fontSize: 40 } },
+      { emoji: "🍳", style: { bottom: 28, right: 24, fontSize: 36 } },
+      { emoji: "🫙", style: { bottom: 28, left: 24, fontSize: 28 } },
+      { emoji: "🐟", style: { bottom: 100, right: 30, fontSize: 24, opacity: 0.6 } },
+    ],
+  },
+  playroom: {
+    bg: "linear-gradient(180deg, #e8f4ff 0%, #c8e6ff 50%, #a8d5f5 100%)",
+    items: [
+      { emoji: "🎈", style: { top: 12, left: 24, fontSize: 32 } },
+      { emoji: "🎈", style: { top: 20, right: 20, fontSize: 24, opacity: 0.7 } },
+      { emoji: "🧶", style: { bottom: 28, left: 20, fontSize: 32 } },
+      { emoji: "🎾", style: { bottom: 36, right: 24, fontSize: 28 } },
+      { emoji: "🪀", style: { bottom: 80, right: 40, fontSize: 22, opacity: 0.7 } },
+    ],
+  },
+};
+
 export default function Index() {
   const [tab, setTab] = useState<Tab>("home");
+  const [room, setRoom] = useState<Room>("bedroom");
   const [hunger, setHunger] = useState(60);
   const [happiness, setHappiness] = useState(70);
   const [energy, setEnergy] = useState(80);
@@ -59,6 +120,7 @@ export default function Index() {
   const [catLevel] = useState(3);
   const [catName] = useState("Томик");
   const [coins, setCoins] = useState(150);
+  const [roomTransition, setRoomTransition] = useState(false);
   const emojiIdRef = useRef(0);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -67,9 +129,7 @@ export default function Index() {
     const y = e ? e.clientY : window.innerHeight / 2;
     const id = ++emojiIdRef.current;
     setFloatingEmojis(prev => [...prev, { id, emoji, x, y }]);
-    setTimeout(() => {
-      setFloatingEmojis(prev => prev.filter(fe => fe.id !== id));
-    }, 1500);
+    setTimeout(() => setFloatingEmojis(prev => prev.filter(fe => fe.id !== id)), 1500);
   }, []);
 
   const showPhrase = useCallback((phrase: string) => {
@@ -85,13 +145,14 @@ export default function Index() {
   }, []);
 
   const handleCatClick = useCallback((e: React.MouseEvent) => {
-    const phrase = CAT_PHRASES[Math.floor(Math.random() * CAT_PHRASES.length)];
+    const phrases = [...CAT_PHRASES[room], ...GENERAL_PHRASES];
+    const phrase = phrases[Math.floor(Math.random() * phrases.length)];
     showPhrase(phrase);
     triggerCatAnim("animate-bounce-cat");
     spawnEmoji("💖", e);
     setHappiness(h => Math.min(100, h + 3));
     setCoins(c => c + 1);
-  }, [showPhrase, triggerCatAnim, spawnEmoji]);
+  }, [showPhrase, triggerCatAnim, spawnEmoji, room]);
 
   const handleFeed = useCallback((food: typeof FOODS[0], e: React.MouseEvent) => {
     setHunger(h => Math.min(100, h + food.food));
@@ -116,11 +177,19 @@ export default function Index() {
     setHappiness(h => Math.min(100, h + 5));
   }, [showPhrase, triggerCatAnim]);
 
-  const handleSleep = useCallback(() => {
-    setEnergy(e => Math.min(100, e + 40));
-    showPhrase("Пррр... Я немного вздремну... 😴");
-    triggerCatAnim("animate-wiggle");
-  }, [showPhrase, triggerCatAnim]);
+  const handleRoomChange = useCallback((newRoom: Room) => {
+    if (newRoom === room) return;
+    setRoomTransition(true);
+    setTimeout(() => {
+      setRoom(newRoom);
+      setRoomTransition(false);
+      const phrases = CAT_PHRASES[newRoom];
+      showPhrase(phrases[Math.floor(Math.random() * phrases.length)]);
+    }, 300);
+    if (newRoom === "bedroom") {
+      setEnergy(e => Math.min(100, e + 20));
+    }
+  }, [room, showPhrase]);
 
   useEffect(() => {
     showPhrase("Привет! Я Томик! Нажми на меня! 😺");
@@ -142,78 +211,113 @@ export default function Index() {
     return "Плохое";
   };
 
+  const currentRoom = ROOM_BACKGROUNDS[room];
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 font-nunito" style={{ background: "linear-gradient(135deg, #FFF5E4 0%, #FFE8D6 50%, #FFF0F5 100%)" }}>
+    <div className="min-h-screen flex items-center justify-center p-3 font-nunito" style={{ background: "linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 50%, #1a0a2e 100%)" }}>
       {floatingEmojis.map(fe => (
-        <div
-          key={fe.id}
-          className="floating-emoji"
-          style={{ left: fe.x - 12, top: fe.y - 12 }}
-        >
+        <div key={fe.id} className="floating-emoji" style={{ left: fe.x - 12, top: fe.y - 12 }}>
           {fe.emoji}
         </div>
       ))}
 
-      <div className="fixed top-10 left-10 w-32 h-32 rounded-full opacity-20 pointer-events-none" style={{ background: "radial-gradient(circle, #FF8C42, transparent)" }} />
-      <div className="fixed bottom-20 right-10 w-40 h-40 rounded-full opacity-15 pointer-events-none" style={{ background: "radial-gradient(circle, #FF6B9D, transparent)" }} />
-
-      <div className="w-full max-w-sm mx-auto flex flex-col gap-3 animate-slide-up">
+      <div className="w-full max-w-sm mx-auto flex flex-col gap-2 animate-slide-up" style={{ maxHeight: "100dvh" }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-2">
-          <span className="text-2xl font-caveat font-bold" style={{ color: "#FF8C42" }}>🐱 Мой Котик</span>
-          <div className="flex items-center gap-1 px-3 py-1.5 rounded-full font-bold text-sm shadow-md" style={{ background: "#FFE66D", color: "#8B6914" }}>
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xl font-caveat font-bold" style={{ color: "#FFB347" }}>🐱 Мой Томик</span>
+          <div className="flex items-center gap-1 px-3 py-1 rounded-full font-bold text-sm shadow-md" style={{ background: "#FFE66D", color: "#8B6914" }}>
             🪙 {coins}
           </div>
         </div>
 
         {/* HOME TAB */}
         {tab === "home" && (
-          <div className="flex flex-col gap-3">
-            <div className="card-game border-orange-200 relative overflow-hidden" style={{ minHeight: 320 }}>
-              <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #E8F4FF 0%, #FFF5E4 100%)" }}>
-                <div className="absolute top-4 left-8 text-4xl opacity-40">☁️</div>
-                <div className="absolute top-8 right-6 text-3xl opacity-30">☁️</div>
-                <div className="absolute bottom-4 left-4 text-2xl opacity-20">🌿</div>
-                <div className="absolute bottom-4 right-4 text-2xl opacity-20">🌺</div>
-              </div>
+          <div className="flex flex-col gap-2">
 
-              <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 transition-all duration-300 ${showBubble ? "opacity-100 scale-100" : "opacity-0 scale-75"}`}>
-                <div className="relative px-4 py-2 rounded-2xl shadow-lg text-center" style={{ background: "white", border: "2px solid #FF8C42", maxWidth: 220 }}>
-                  <span className="font-nunito font-bold text-sm" style={{ color: "#4A2C0A" }}>{catPhrase}</span>
-                  <div className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-0 h-0" style={{ borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderTop: "10px solid #FF8C42" }} />
-                </div>
-              </div>
+            {/* Room selector */}
+            <div className="flex gap-2 px-1">
+              {ROOMS.map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => handleRoomChange(r.id)}
+                  className="flex-1 py-2 rounded-2xl font-bold text-sm transition-all duration-200 flex flex-col items-center gap-0.5"
+                  style={{
+                    background: room === r.id
+                      ? "linear-gradient(135deg, #FF8C42, #FF6B50)"
+                      : "rgba(255,255,255,0.15)",
+                    color: room === r.id ? "white" : "rgba(255,255,255,0.7)",
+                    border: room === r.id ? "2px solid #FF8C42" : "2px solid rgba(255,255,255,0.2)",
+                    transform: room === r.id ? "translateY(-2px)" : "none",
+                    boxShadow: room === r.id ? "0 6px 16px rgba(255,140,66,0.4)" : "none",
+                  }}
+                >
+                  <span className="text-lg">{r.emoji}</span>
+                  <span style={{ fontSize: 11 }}>{r.label}</span>
+                </button>
+              ))}
+            </div>
 
-              <div
-                className={`absolute bottom-8 left-1/2 -translate-x-1/2 cursor-pointer select-none ${catAnim}`}
-                onClick={handleCatClick}
-              >
-                <div className="relative">
-                  <div className="w-36 h-36 rounded-full overflow-hidden shadow-2xl border-4 border-white animate-pulse-glow">
-                    <img src={CAT_IMAGE} alt="Пушистик" className="w-full h-full object-cover" draggable={false} />
-                  </div>
-                  <div className="absolute -top-1 -right-1 text-2xl">{getMoodEmoji()}</div>
-                </div>
-              </div>
+            {/* Room arena */}
+            <div
+              className="card-game border-0 relative overflow-hidden"
+              style={{ minHeight: 300, background: currentRoom.bg, transition: "all 0.3s ease", opacity: roomTransition ? 0 : 1 }}
+            >
+              {/* Room decorations */}
+              {currentRoom.items.map((item, i) => (
+                <div key={i} className="absolute pointer-events-none" style={item.style}>{item.emoji}</div>
+              ))}
 
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
+              {/* Floor */}
+              <div className="absolute bottom-0 left-0 right-0 h-16 rounded-b-3xl" style={{
+                background: room === "bedroom" ? "linear-gradient(180deg, #6B4F2A, #4A3520)"
+                  : room === "kitchen" ? "linear-gradient(180deg, #c8a870, #a07840)"
+                  : "linear-gradient(180deg, #7ab8e8, #5a98c8)"
+              }} />
+
+              {/* Stats on left */}
+              <div className="absolute left-3 top-3 flex flex-col gap-1.5 z-10">
                 <MiniBar icon="🍖" value={hunger} color="#FF8C42" />
                 <MiniBar icon="⭐" value={happiness} color="#FF6B9D" />
                 <MiniBar icon="⚡" value={energy} color="#4ECDC4" />
               </div>
+
+              {/* Speech bubble */}
+              <div className={`absolute top-3 left-1/2 z-20 transition-all duration-300 ${showBubble ? "opacity-100 scale-100" : "opacity-0 scale-75"}`}
+                style={{ transform: showBubble ? "translateX(-50%) scale(1)" : "translateX(-50%) scale(0.75)" }}>
+                <div className="relative px-3 py-2 rounded-2xl shadow-lg text-center" style={{ background: "white", border: "2px solid #FF8C42", maxWidth: 200 }}>
+                  <span className="font-nunito font-bold text-xs" style={{ color: "#4A2C0A" }}>{catPhrase}</span>
+                  <div className="absolute bottom-[-9px] left-1/2 -translate-x-1/2 w-0 h-0" style={{ borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: "9px solid #FF8C42" }} />
+                </div>
+              </div>
+
+              {/* Cat */}
+              <div
+                className={`absolute left-1/2 z-10 cursor-pointer select-none ${catAnim}`}
+                style={{ bottom: 48, transform: "translateX(-50%)" }}
+                onClick={handleCatClick}
+              >
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full overflow-hidden shadow-2xl border-[3px] border-white animate-pulse-glow">
+                    <img src={CAT_IMAGE_CARTOON} alt="Томик" className="w-full h-full object-cover object-top" draggable={false} />
+                  </div>
+                  <div className="absolute -top-1 -right-1 text-xl">{getMoodEmoji()}</div>
+                </div>
+              </div>
             </div>
 
+            {/* Action buttons - at the bottom */}
             <div className="grid grid-cols-3 gap-2">
-              <button className="btn-game py-3 text-sm flex flex-col items-center gap-1" style={{ background: "#FF8C42" }} onClick={() => setTab("items")}>
+              <button className="btn-game py-3 text-xs flex flex-col items-center gap-1" style={{ background: "linear-gradient(135deg, #FF8C42, #FF6B50)" }} onClick={() => setTab("items")}>
                 <span className="text-xl">🍣</span>
                 <span>Покормить</span>
               </button>
-              <button className="btn-game py-3 text-sm flex flex-col items-center gap-1" style={{ background: "#FF6B9D" }} onClick={() => setTab("items")}>
+              <button className="btn-game py-3 text-xs flex flex-col items-center gap-1" style={{ background: "linear-gradient(135deg, #FF6B9D, #C44BB3)" }} onClick={() => setTab("items")}>
                 <span className="text-xl">🧶</span>
                 <span>Поиграть</span>
               </button>
-              <button className="btn-game py-3 text-sm flex flex-col items-center gap-1" style={{ background: "#4ECDC4" }} onClick={handleSleep}>
+              <button className="btn-game py-3 text-xs flex flex-col items-center gap-1" style={{ background: "linear-gradient(135deg, #4ECDC4, #2EA89E)" }}
+                onClick={() => { setEnergy(e => Math.min(100, e + 40)); showPhrase("Пррр... Я немного вздремну... 😴"); triggerCatAnim("animate-wiggle"); handleRoomChange("bedroom"); }}>
                 <span className="text-xl">😴</span>
                 <span>Поспать</span>
               </button>
@@ -223,17 +327,14 @@ export default function Index() {
 
         {/* ITEMS TAB */}
         {tab === "items" && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <div className="card-game border-orange-200 p-4">
-              <h2 className="font-caveat text-xl font-bold mb-3 text-center" style={{ color: "#FF8C42" }}>🍽️ Еда и угощения</h2>
-              <div className="grid grid-cols-2 gap-3">
+              <h2 className="font-caveat text-xl font-bold mb-3 text-center" style={{ color: "#FF8C42" }}>🍽️ Еда для Томика</h2>
+              <div className="grid grid-cols-2 gap-2">
                 {FOODS.map((food) => (
-                  <button
-                    key={food.name}
-                    className="btn-game py-3 flex flex-col items-center gap-1 text-sm"
+                  <button key={food.name} className="btn-game py-3 flex flex-col items-center gap-1 text-sm"
                     style={{ background: "linear-gradient(135deg, #FF8C42, #FF6B50)" }}
-                    onClick={(e) => handleFeed(food, e)}
-                  >
+                    onClick={(e) => handleFeed(food, e)}>
                     <span className="text-3xl">{food.emoji}</span>
                     <span className="font-bold">{food.name}</span>
                     <span className="text-xs opacity-90">{food.label}</span>
@@ -244,14 +345,11 @@ export default function Index() {
 
             <div className="card-game border-pink-200 p-4">
               <h2 className="font-caveat text-xl font-bold mb-3 text-center" style={{ color: "#FF6B9D" }}>🎮 Игрушки</h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 {TOYS.map((toy) => (
-                  <button
-                    key={toy.name}
-                    className="btn-game py-3 flex flex-col items-center gap-1 text-sm"
+                  <button key={toy.name} className="btn-game py-3 flex flex-col items-center gap-1 text-sm"
                     style={{ background: "linear-gradient(135deg, #FF6B9D, #C44BB3)" }}
-                    onClick={(e) => handlePlay(toy, e)}
-                  >
+                    onClick={(e) => handlePlay(toy, e)}>
                     <span className="text-3xl">{toy.emoji}</span>
                     <span className="font-bold">{toy.name}</span>
                     <span className="text-xs opacity-90">{toy.label}</span>
@@ -265,24 +363,20 @@ export default function Index() {
         {/* SOUNDS TAB */}
         {tab === "sounds" && (
           <div className="card-game border-purple-200 p-4">
-            <h2 className="font-caveat text-2xl font-bold mb-4 text-center" style={{ color: "#A78BFA" }}>🎵 Звуки и фразы</h2>
+            <h2 className="font-caveat text-2xl font-bold mb-4 text-center" style={{ color: "#A78BFA" }}>🎵 Звуки Томика</h2>
             <div className="grid grid-cols-2 gap-3">
               {SOUNDS.map((sound) => (
-                <button
-                  key={sound.name}
-                  className="btn-game py-4 flex flex-col items-center gap-2 text-sm"
+                <button key={sound.name} className="btn-game py-4 flex flex-col items-center gap-2 text-sm"
                   style={{ background: "linear-gradient(135deg, #A78BFA, #7C3AED)" }}
-                  onClick={() => handleSound(sound)}
-                >
+                  onClick={() => handleSound(sound)}>
                   <span className="text-3xl">{sound.emoji}</span>
                   <span className="font-bold">{sound.name}</span>
                 </button>
               ))}
             </div>
-
-            <div className="mt-4 p-3 rounded-2xl text-center" style={{ background: "#F3EEFF", border: "2px dashed #A78BFA" }}>
-              <p className="font-caveat text-lg font-bold" style={{ color: "#6D28D9" }}>
-                🎤 Котик скажет: «{catPhrase}»
+            <div className="mt-3 p-3 rounded-2xl text-center" style={{ background: "#F3EEFF", border: "2px dashed #A78BFA" }}>
+              <p className="font-caveat text-base font-bold" style={{ color: "#6D28D9" }}>
+                🎤 «{catPhrase}»
               </p>
             </div>
           </div>
@@ -290,11 +384,11 @@ export default function Index() {
 
         {/* INFO TAB */}
         {tab === "info" && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <div className="card-game border-teal-200 p-4">
-              <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-3 mb-4">
                 <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 shadow-lg flex-shrink-0" style={{ borderColor: "#4ECDC4" }}>
-                  <img src={CAT_IMAGE} alt={catName} className="w-full h-full object-cover" />
+                  <img src={CAT_IMAGE_CARTOON} alt={catName} className="w-full h-full object-cover object-top" />
                 </div>
                 <div>
                   <h2 className="font-caveat text-2xl font-bold" style={{ color: "#2A7A74" }}>{catName}</h2>
@@ -304,11 +398,10 @@ export default function Index() {
                     ))}
                     <span className="text-xs font-bold ml-1" style={{ color: "#888" }}>ур. {catLevel}</span>
                   </div>
-                  <div className="text-sm font-bold mt-1" style={{ color: "#4ECDC4" }}>Настроение: {getMoodText()} {getMoodEmoji()}</div>
+                  <div className="text-sm font-bold mt-1" style={{ color: "#4ECDC4" }}>{getMoodText()} {getMoodEmoji()}</div>
                 </div>
               </div>
-
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 <InfoBar label="🍖 Голод" value={hunger} color="#FF8C42" />
                 <InfoBar label="⭐ Радость" value={happiness} color="#FF6B9D" />
                 <InfoBar label="⚡ Энергия" value={energy} color="#4ECDC4" />
@@ -319,12 +412,13 @@ export default function Index() {
               <h3 className="font-caveat text-xl font-bold mb-3" style={{ color: "#B8860B" }}>📋 О питомце</h3>
               <div className="flex flex-col gap-2">
                 {[
-                  { label: "Порода", value: "Пушистая 🐾" },
-                  { label: "Характер", value: "Добрый и ласковый 😺" },
-                  { label: "Любимое", value: "Рыбка и клубок 🐟🧶" },
+                  { label: "Кличка", value: "Томик 🐾" },
+                  { label: "Характер", value: "Добрый 😺" },
+                  { label: "Любит", value: "Рыбку 🐟 и сон 😴" },
+                  { label: "Сейчас в", value: ROOMS.find(r => r.id === room)?.label + " " + ROOMS.find(r => r.id === room)?.emoji },
                   { label: "Монеток", value: `${coins} 🪙` },
                 ].map(item => (
-                  <div key={item.label} className="flex justify-between items-center py-2 px-3 rounded-xl" style={{ background: "#FFFBEB" }}>
+                  <div key={item.label} className="flex justify-between items-center py-1.5 px-3 rounded-xl" style={{ background: "#FFFBEB" }}>
                     <span className="font-bold text-sm" style={{ color: "#92713A" }}>{item.label}</span>
                     <span className="font-bold text-sm" style={{ color: "#4A3000" }}>{item.value}</span>
                   </div>
@@ -335,7 +429,7 @@ export default function Index() {
         )}
 
         {/* Bottom navigation */}
-        <div className="card-game border-orange-100 p-2">
+        <div className="card-game border-0 p-2" style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)" }}>
           <div className="flex justify-around items-center">
             <TabButton active={tab === "home"} emoji="🏠" label="Главная" onClick={() => setTab("home")} />
             <TabButton active={tab === "items"} emoji="🛒" label="Предметы" onClick={() => setTab("items")} />
@@ -351,8 +445,8 @@ export default function Index() {
 function MiniBar({ icon, value, color }: { icon: string; value: number; color: string }) {
   return (
     <div className="flex items-center gap-1">
-      <span className="text-sm">{icon}</span>
-      <div className="w-12 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.6)" }}>
+      <span className="text-xs">{icon}</span>
+      <div className="w-10 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.3)" }}>
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${value}%`, background: color }} />
       </div>
     </div>
@@ -377,7 +471,7 @@ function TabButton({ active, emoji, label, onClick }: { active: boolean; emoji: 
   return (
     <button
       className={`tab-btn font-nunito text-xs font-bold ${active ? "active" : ""}`}
-      style={{ color: active ? "white" : "#999", minWidth: 64 }}
+      style={{ color: active ? "white" : "rgba(255,255,255,0.5)", minWidth: 64 }}
       onClick={onClick}
     >
       <span className="text-xl">{emoji}</span>
