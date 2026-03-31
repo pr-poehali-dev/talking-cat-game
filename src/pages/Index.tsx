@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
-const CAT_IMAGE_CARTOON = "https://cdn.poehali.dev/projects/54c437fd-ed06-46ad-a693-eec01f816eaf/files/b5e7e8d1-a914-456f-97c9-a512c3786a06.jpg";
+const CAT_IMAGE_CARTOON = "https://cdn.poehali.dev/projects/54c437fd-ed06-46ad-a693-eec01f816eaf/bucket/5f9b441a-af18-4331-8cac-38240271061e.jpg";
 
 type Tab = "home" | "items" | "sounds" | "info" | "messages";
 type Room = "bedroom" | "kitchen" | "playroom";
