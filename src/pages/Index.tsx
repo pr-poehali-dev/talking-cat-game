@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
-const CAT_IMAGE = "https://cdn.poehali.dev/projects/54c437fd-ed06-46ad-a693-eec01f816eaf/files/af9c9fa0-62db-4783-91b3-971bf2e81653.jpg";
+const CAT_IMAGE = "https://cdn.poehali.dev/projects/54c437fd-ed06-46ad-a693-eec01f816eaf/bucket/5f9b441a-af18-4331-8cac-38240271061e.jpg";
 
 type Tab = "home" | "items" | "sounds" | "info";
 
@@ -52,12 +52,12 @@ export default function Index() {
   const [hunger, setHunger] = useState(60);
   const [happiness, setHappiness] = useState(70);
   const [energy, setEnergy] = useState(80);
-  const [catPhrase, setCatPhrase] = useState("Привет! Я Пушистик! 😺");
+  const [catPhrase, setCatPhrase] = useState("Привет! Я Томик! 😺");
   const [catAnim, setCatAnim] = useState("");
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
   const [showBubble, setShowBubble] = useState(true);
   const [catLevel] = useState(3);
-  const [catName] = useState("Пушистик");
+  const [catName] = useState("Томик");
   const [coins, setCoins] = useState(150);
   const emojiIdRef = useRef(0);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -123,7 +123,7 @@ export default function Index() {
   }, [showPhrase, triggerCatAnim]);
 
   useEffect(() => {
-    showPhrase("Привет! Я Пушистик! Нажми на меня! 😺");
+    showPhrase("Привет! Я Томик! Нажми на меня! 😺");
   }, []);
 
   const getMoodEmoji = () => {
