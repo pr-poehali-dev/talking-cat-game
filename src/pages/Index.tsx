@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 
 const CAT_IMAGE_CARTOON = "https://cdn.poehali.dev/projects/54c437fd-ed06-46ad-a693-eec01f816eaf/files/b5e7e8d1-a914-456f-97c9-a512c3786a06.jpg";
 
-type Tab = "home" | "items" | "sounds" | "info";
+type Tab = "home" | "items" | "sounds" | "info" | "messages";
 type Room = "bedroom" | "kitchen" | "playroom";
 
 interface FloatingEmoji {
@@ -57,6 +57,60 @@ const FOODS = [
   { emoji: "🥛", name: "Молоко", food: 15, label: "+15 сытость" },
   { emoji: "🍗", name: "Курочка", food: 20, label: "+20 сытость" },
 ];
+
+interface Message {
+  id: number;
+  from: "user" | "cat";
+  text: string;
+  emoji?: string;
+}
+
+const QUICK_MESSAGES = [
+  { text: "Я тебя люблю 💖", emoji: "💖" },
+  { text: "Я скучаю по тебе 🥺", emoji: "🥺" },
+  { text: "Вернись, пожалуйста 🙏", emoji: "🙏" },
+  { text: "Ты лучший кот на свете! 🌟", emoji: "🌟" },
+  { text: "Думаю о тебе 💭", emoji: "💭" },
+  { text: "Хочу обнять тебя 🤗", emoji: "🤗" },
+];
+
+const CAT_RESPONSES: Record<string, string[]> = {
+  love: [
+    "Мур-р-р... Я тоже тебя люблю! Всем сердцем! ❤️",
+    "Пррр... Ты мой самый любимый человечек! 😻",
+    "Мяу! Я очень-очень тебя люблю! 💖",
+  ],
+  miss: [
+    "Мяу-у-у... Я тоже скучаю! Приходи скорее! 😿",
+    "Пррр... Без тебя так тихо и грустно... 🥺",
+    "Мур... Я жду тебя каждый день! 💔",
+  ],
+  return: [
+    "МЯУ! Я уже бегу к двери! Скорее! 🐾",
+    "Пожалуйста-пожалуйста! Я буду очень хорошим! 🙏",
+    "Мяу-мяу! Я так рад тебя видеть! 😻",
+  ],
+  default: [
+    "Мур-мур! Слышу тебя, мой хороший! 😺",
+    "Пррр... Спасибо! Ты такой добрый! 🧡",
+    "Мяу! Как хорошо, что ты написал мне! ✨",
+    "Мур-р-р! Я очень рад твоему сообщению! 😻",
+  ],
+};
+
+function getCatResponse(text: string): string {
+  const lower = text.toLowerCase();
+  if (lower.includes("люблю") || lower.includes("любовь") || lower.includes("обожаю")) {
+    return CAT_RESPONSES.love[Math.floor(Math.random() * CAT_RESPONSES.love.length)];
+  }
+  if (lower.includes("скуч")) {
+    return CAT_RESPONSES.miss[Math.floor(Math.random() * CAT_RESPONSES.miss.length)];
+  }
+  if (lower.includes("вернись") || lower.includes("приходи") || lower.includes("пожалуйста")) {
+    return CAT_RESPONSES.return[Math.floor(Math.random() * CAT_RESPONSES.return.length)];
+  }
+  return CAT_RESPONSES.default[Math.floor(Math.random() * CAT_RESPONSES.default.length)];
+}
 
 const SOUNDS = [
   { emoji: "😼", name: "Мяукнуть", phrase: "Мяу! Мяу! Мяяяу! 😼" },
@@ -121,7 +175,14 @@ export default function Index() {
   const [catName] = useState("Томик");
   const [coins, setCoins] = useState(150);
   const [roomTransition, setRoomTransition] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    { id: 0, from: "cat", text: "Привет! Напиши мне что-нибудь... 😺", emoji: "😺" },
+  ]);
+  const [inputText, setInputText] = useState("");
+  const [isCatTyping, setIsCatTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const emojiIdRef = useRef(0);
+  const msgIdRef = useRef(1);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const spawnEmoji = useCallback((emoji: string, e?: React.MouseEvent) => {
@@ -176,6 +237,26 @@ export default function Index() {
     triggerCatAnim("animate-bounce-cat");
     setHappiness(h => Math.min(100, h + 5));
   }, [showPhrase, triggerCatAnim]);
+
+  const sendMessage = useCallback((text: string, emoji?: string) => {
+    if (!text.trim()) return;
+    const userMsg: Message = { id: ++msgIdRef.current, from: "user", text, emoji };
+    setMessages(prev => [...prev, userMsg]);
+    setInputText("");
+    setIsCatTyping(true);
+    setHappiness(h => Math.min(100, h + 8));
+    setTimeout(() => {
+      const response = getCatResponse(text);
+      const catMsg: Message = { id: ++msgIdRef.current, from: "cat", text: response };
+      setMessages(prev => [...prev, catMsg]);
+      setIsCatTyping(false);
+      showPhrase(response.length > 40 ? response.slice(0, 38) + "..." : response);
+    }, 1200);
+  }, [showPhrase]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isCatTyping]);
 
   const handleRoomChange = useCallback((newRoom: Room) => {
     if (newRoom === room) return;
@@ -428,12 +509,113 @@ export default function Index() {
           </div>
         )}
 
+        {/* MESSAGES TAB */}
+        {tab === "messages" && (
+          <div className="flex flex-col gap-2">
+            {/* Quick phrases */}
+            <div className="card-game border-pink-200 p-3">
+              <p className="font-caveat text-base font-bold mb-2 text-center" style={{ color: "#FF6B9D" }}>💌 Быстрые фразы</p>
+              <div className="flex flex-wrap gap-2">
+                {QUICK_MESSAGES.map((qm) => (
+                  <button
+                    key={qm.text}
+                    onClick={() => sendMessage(qm.text, qm.emoji)}
+                    className="px-3 py-1.5 rounded-full text-sm font-bold transition-all active:scale-90"
+                    style={{ background: "linear-gradient(135deg, #FF6B9D, #C44BB3)", color: "white", boxShadow: "0 4px 12px rgba(255,107,157,0.35)" }}
+                  >
+                    {qm.text}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Chat window */}
+            <div className="card-game border-pink-100 flex flex-col" style={{ height: 320 }}>
+              {/* Cat header */}
+              <div className="flex items-center gap-2 p-3 border-b border-pink-100">
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0" style={{ borderColor: "#FF6B9D" }}>
+                  <img src={CAT_IMAGE_CARTOON} alt="Томик" className="w-full h-full object-cover object-top" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm" style={{ color: "#333" }}>Томик</p>
+                  <p className="text-xs" style={{ color: isCatTyping ? "#FF6B9D" : "#4ECDC4" }}>
+                    {isCatTyping ? "печатает... 🐾" : "онлайн 🟢"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Messages list */}
+              <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                {messages.map((msg) => (
+                  <div key={msg.id} className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}>
+                    {msg.from === "cat" && (
+                      <div className="w-7 h-7 rounded-full overflow-hidden mr-1.5 flex-shrink-0 self-end">
+                        <img src={CAT_IMAGE_CARTOON} alt="" className="w-full h-full object-cover object-top" />
+                      </div>
+                    )}
+                    <div
+                      className="px-3 py-2 rounded-2xl text-sm font-bold max-w-[75%] shadow-sm"
+                      style={{
+                        background: msg.from === "user"
+                          ? "linear-gradient(135deg, #FF6B9D, #C44BB3)"
+                          : "white",
+                        color: msg.from === "user" ? "white" : "#333",
+                        borderRadius: msg.from === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                        border: msg.from === "cat" ? "1.5px solid #FFD6E8" : "none",
+                      }}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {isCatTyping && (
+                  <div className="flex justify-start items-end gap-1.5">
+                    <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+                      <img src={CAT_IMAGE_CARTOON} alt="" className="w-full h-full object-cover object-top" />
+                    </div>
+                    <div className="px-4 py-3 rounded-2xl bg-white border border-pink-100 shadow-sm" style={{ borderRadius: "18px 18px 18px 4px" }}>
+                      <div className="flex gap-1 items-center">
+                        <span className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#FF6B9D", animationDelay: "0ms" }} />
+                        <span className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#FF6B9D", animationDelay: "150ms" }} />
+                        <span className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#FF6B9D", animationDelay: "300ms" }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Input */}
+              <div className="p-2 border-t border-pink-100 flex gap-2">
+                <input
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage(inputText)}
+                  placeholder="Напиши Томику..."
+                  className="flex-1 px-3 py-2 rounded-2xl text-sm font-bold outline-none"
+                  style={{ background: "#FFF0F7", border: "2px solid #FFD6E8", color: "#333" }}
+                />
+                <button
+                  onClick={() => sendMessage(inputText)}
+                  disabled={!inputText.trim() || isCatTyping}
+                  className="w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all active:scale-90 disabled:opacity-40"
+                  style={{ background: "linear-gradient(135deg, #FF6B9D, #C44BB3)", color: "white", boxShadow: "0 4px 12px rgba(255,107,157,0.4)" }}
+                >
+                  ➤
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Bottom navigation */}
         <div className="card-game border-0 p-2" style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)" }}>
           <div className="flex justify-around items-center">
             <TabButton active={tab === "home"} emoji="🏠" label="Главная" onClick={() => setTab("home")} />
             <TabButton active={tab === "items"} emoji="🛒" label="Предметы" onClick={() => setTab("items")} />
             <TabButton active={tab === "sounds"} emoji="🎵" label="Звуки" onClick={() => setTab("sounds")} />
+            <TabButton active={tab === "messages"} emoji="💌" label="Написать" onClick={() => setTab("messages")} />
             <TabButton active={tab === "info"} emoji="📋" label="Инфо" onClick={() => setTab("info")} />
           </div>
         </div>
